@@ -92,7 +92,8 @@ export default function initHeadManager(): {
 
   return {
     mountedInstances: new Set(),
-    updateHead: (head: JSX.Element[]) => {
+    updateHead: (head: JSX.Element[], id?: string) => {
+      console.log('->', id, head)
       const promise = (updatePromise = Promise.resolve().then(() => {
         if (promise !== updatePromise) return
 
@@ -116,6 +117,8 @@ export default function initHeadManager(): {
           components.push(h)
           tags[h.type] = components
         })
+
+        console.log('updating head title', tags.title)
 
         const titleComponent = tags.title ? tags.title[0] : null
         let title = ''

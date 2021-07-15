@@ -12,6 +12,7 @@ type SideEffectProps = {
   handleStateChange?: (state: State) => void
   headManager: any
   inAmpMode?: boolean
+  id?: string
 }
 
 export default class extends Component<SideEffectProps> {
@@ -23,7 +24,8 @@ export default class extends Component<SideEffectProps> {
         this.props.reduceComponentsToState(
           [...this.props.headManager.mountedInstances],
           this.props
-        )
+        ),
+        this.props.id
       )
     }
   }

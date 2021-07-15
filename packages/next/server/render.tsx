@@ -1,7 +1,12 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
+import stream from 'stream'
 import React from 'react'
-import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import {
+  renderToStaticMarkup,
+  renderToString,
+  pipeToNodeWritable,
+} from 'react-dom-18/server'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -985,9 +990,9 @@ export async function renderToHTML(
     }
   }
 
-  const renderPage: RenderPage = (
+  const renderPage: RenderPage = async (
     options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
+  ): Promise<{ html: string; head: any }> => {
     if (ctx.err && ErrorDebug) {
       return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
     }
@@ -1002,12 +1007,41 @@ export async function renderToHTML(
       App: EnhancedApp,
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
-
-    const html = renderToString(
+    const node = (
       <AppContainer>
         <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
       </AppContainer>
     )
+
+    let resolver: (value: string) => void
+    let s = ''
+    const p = new Promise<string>((resolve) => (resolver = resolve))
+
+    const writable = new stream.Writable({
+      writev(chunks, cb) {
+        for (let chunk of chunks) {
+          s += chunk.chunk.toString()
+        }
+        console.log('[stream]', s)
+        cb()
+      },
+      final() {
+        resolver(s)
+      },
+    })
+    const { startWriting, abort } = pipeToNodeWritable(node, writable, {
+      onReadyToStream() {
+        startWriting()
+      },
+      onError(x: any) {
+        console.error(x)
+      },
+    })
+
+    const html = await p
+    console.log('[stream end]')
+
+    // const html = renderToString(node)
 
     return { html, head }
   }
